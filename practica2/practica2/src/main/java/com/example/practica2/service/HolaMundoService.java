@@ -12,27 +12,43 @@ import org.springframework.web.bind.annotation.RestController;
 public class HolaMundoService {
 
     private final JwtService jwtService;
+    private final ApiKeyService apiKeyService;
 
-    public HolaMundoService(JwtService jwtService) {
+    public HolaMundoService(JwtService jwtService, ApiKeyService apiKeyService) {
         this.jwtService = jwtService;
+        this.apiKeyService = apiKeyService;
     }
 
     @GetMapping("/hola")
-    public ResponseEntity<String> hola(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<String> hola(@RequestHeader(value = "Authorization", required = false) String headerToken,
+    		@RequestHeader(value = "X-API-KEY", required = false) String headerApiKey) {
 
-        if (authHeader == null || authHeader.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Token no enviado");
+    	boolean tokenValido = false;
+        boolean apiKeyValida = false;
+        
+        if (headerToken != null && !headerToken.isBlank()) {
+
+            if (headerToken.startsWith("Bearer ")) {
+                String token = headerToken.substring(7).trim();
+                tokenValido = jwtService.validarToken(token);
+            }
         }
-
-        if (!authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token invalido");
+        
+        if (headerApiKey != null && !headerApiKey.isBlank()) {
+            String apiKey = headerApiKey.trim();
+            apiKeyValida = apiKeyService.validarApiKey(apiKey);
         }
+        
+        if ((headerToken == null || headerToken.isBlank()) &&
+                (headerApiKey == null || headerApiKey.isBlank())) {
 
-        String token = authHeader.substring(7).trim();
-
-        if (!jwtService.validarToken(token)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token invalido");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Token o API Key no enviado");
+            }
+        
+        if (!tokenValido && !apiKeyValida) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Token o API Key invalido");
         }
 
         return ResponseEntity.ok("Hola mundo");

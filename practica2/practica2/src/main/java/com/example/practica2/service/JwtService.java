@@ -21,12 +21,15 @@ public class JwtService {
     private final SecretKey key;
 
     public JwtService(@Value("${jwt.secret}") String secret) {
-        byte[] keyBytes = Decoders.BASE64.decode(secret); //convierte secret a bytes
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generarToken(String userName) {
-
+    	if (userName == null || userName.isBlank()) {
+            throw new IllegalArgumentException("El nombre de usuario no puede estar vacío");
+        }
+    	
         Instant ahora = Instant.now();
         Instant expiracion = ahora.plusMillis(EXPIRATION_TIME);
 
@@ -35,17 +38,7 @@ public class JwtService {
                 .issuedAt(Date.from(ahora))
                 .expiration(Date.from(expiracion))
                 .signWith(key, Jwts.SIG.HS256)
-                .compact(); //lo construye como una cadena de texto
-    }
-
-    public String obtenerUsername(String token) {
-
-        return Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+                .compact();
     }
 
     public boolean validarToken(String token) {
@@ -54,7 +47,7 @@ public class JwtService {
             Jwts.parser()
                     .verifyWith(key)
                     .build()
-                    .parseSignedClaims(token); //comprueba automáticamente la fecha de expiración
+                    .parseSignedClaims(token);
 
             return true;
 
